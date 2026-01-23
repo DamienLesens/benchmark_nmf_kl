@@ -28,14 +28,18 @@ class Solver(BaseSolver):
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
     
-    def updateH_MU(V,W,H):
+    def updateH_MU_burg(V,W,H,gamma):
+    #gamma will be matrix, to have different steps on different columns
         eps=np.finfo(float).eps
-        return H * (W.T @ (V/(W@H+np.full(V.shape,eps))))/(W.T @ np.ones(V.shape)+np.full(W.T.shape,eps))
+        return H / (np.ones(H.shape) + gamma * H * (W.T @(np.ones(V.shape)- V/(W@H+np.full(V.shape,eps)))) + np.full(H.shape,eps))
 
     def run(self, callback):
         m, n = self.X.shape
         rank = self.rank
         n_inner_iter = self.n_inner_iter
+
+        gammaH = 1/(np.ones((rank,m))@self.X*2)
+        gammaW = 1/(np.ones((rank,n))@self.X.T*2)
 
         if not self.factors_init:
             # Random init if init is not provided
@@ -46,11 +50,11 @@ class Solver(BaseSolver):
         while callback():
             # W update
             for _ in range(n_inner_iter):
-                self.W = self.updateH_MU(self.X.T,self.H.T,self.W.T).T
+                self.W = self.updateH_MU(self.X.T,self.H.T,self.W.T,gammaW).T
 
             # H update
             for _ in range(n_inner_iter):
-                self.H = self.updateH_MU(self.X,self.W,self.H)
+                self.H = self.updateH_MU_burg(self.X,self.W,self.H,gammaH)
 
     def get_result(self):
         # The outputs of this function are the arguments of the
