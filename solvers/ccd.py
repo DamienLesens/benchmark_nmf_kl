@@ -1,6 +1,6 @@
 from benchopt import BaseSolver, safe_import_context
 from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
-from benchmark_utils.sn import SNcpp
+from benchmark_utils.ccd import CCDcpp
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -8,9 +8,9 @@ with safe_import_context() as import_ctx:
 
 class Solver(BaseSolver):
     """
-    Scalar Newton
+    Cyclic Coordinate Descent
     """
-    name = "sn"
+    name = "ccd"
 
     parameters = {
         'n_inner_iter': [5]
@@ -38,29 +38,24 @@ class Solver(BaseSolver):
         else:
             self.W, self.H = [np.copy(self.factors_init[i]) for i in range(2)]
 
-        
         maxiter = stop_val
-        maxtime = 1000#just something big
+        maxtime = 1000
         V = np.asarray(V, dtype=np.float64, order="F")
-        Wt = np.array(self.W.T, dtype=np.float64, order="F", copy=True)
-        H  = np.array(self.H, dtype=np.float64, order="F", copy=True)
+        W = np.asarray(self.W, dtype=np.float64, order="C", copy=True)
+        H = np.asarray(self.H, dtype=np.float64, order="F", copy=True)
         objlist = np.zeros(maxiter)
         timelist = np.zeros(maxiter)
-        inneriter=self.n_inner_iter
-        delta=0.5#idk
-        obj_compute=0 #indicates that the objective must be evaluated at each iteration
 
+        #D is set to 2 by default inside the cpp function
 
-        reallength = SNcpp.run(
-            m, n, k, maxiter, maxtime,
-            V, Wt, H,
-            objlist, timelist,
-            inneriter,delta,obj_compute
+        reallength = CCDcpp.run(
+            n, m, k, maxiter, maxtime,
+            V, W, H,
+            0,
+            objlist, timelist
         )
 
-        #reallenght is equal to the actual number of iteration perform until maxtime is reached
-
-        self.W = Wt.T
+        self.W = W
         self.H = H
         
 

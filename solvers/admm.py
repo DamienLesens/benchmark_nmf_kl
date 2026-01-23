@@ -57,12 +57,12 @@ class Solver(BaseSolver):
             b = self.rho*YZ-aX-np.ones((N,M))
             X = (b+np.sqrt((b)**2+4*self.rho*self.X))/(2*self.rho)
 
-            W = np.maximum(Y+aY/self.rho,0)
-            H = np.maximum(Z+aZ/self.rho,0)
+            self.W = np.maximum(Y+aY/self.rho,0)
+            self.H = np.maximum(Z+aZ/self.rho,0)
 
             aX = aX+self.rho*(X-YZ)
-            aY = aY+self.rho*(Y-W)
-            aZ = aZ+self.rho*(Z-H)
+            aY = aY+self.rho*(Y-self.W)
+            aZ = aZ+self.rho*(Z-self.H)
 
     def get_result(self):
         # The outputs of this function are the arguments of the
