@@ -5,6 +5,8 @@ dataset: # dataset to run benchmark on
 solver: # list of example solvers to do benchmark
   - mu 
   - mu_berg
+  - fpa
+  - admm
 
 # note: use more repetitions to have quantiles on the plot
 n-repetitions: 5
