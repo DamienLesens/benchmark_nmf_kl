@@ -7,7 +7,10 @@ solver: # list of example solvers to do benchmark
   - mu_berg
   - fpa
   - admm
+  - sn 
+  - ccd
 
 # note: use more repetitions to have quantiles on the plot
-n-repetitions: 5
+n-repetitions: 10
 timeout: 1s
+max-runs: 10000

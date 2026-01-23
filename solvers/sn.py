@@ -41,7 +41,7 @@ class Solver(BaseSolver):
         
         maxiter = stop_val
         maxtime = 1000#just something big
-        V = np.asarray(V, dtype=np.float64, order="F")
+        V = np.asarray(self.X, dtype=np.float64, order="F")
         Wt = np.array(self.W.T, dtype=np.float64, order="F", copy=True)
         H  = np.array(self.H, dtype=np.float64, order="F", copy=True)
         objlist = np.zeros(maxiter)
