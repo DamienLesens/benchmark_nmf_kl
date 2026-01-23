@@ -12,8 +12,7 @@ class Solver(BaseSolver):
     name = "mu"
 
     parameters = {
-        'n_inner_iter': [1],
-        'loss': ['divergence']
+        'n_inner_iter': [1]
     }
 
     sampling_strategy = "callback"

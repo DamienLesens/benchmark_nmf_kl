@@ -7,12 +7,12 @@ with safe_import_context() as import_ctx:
 
 class Solver(BaseSolver):
     """
-    Multiplicative Updates with Burg entropy
+    ADMM
     """
-    name = "mu_berg"
+    name = "admm"
 
     parameters = {
-        'n_inner_iter': [1]
+        'rho': [1,10,1000,10000]
     }
 
     sampling_strategy = "callback"
@@ -26,35 +26,43 @@ class Solver(BaseSolver):
         self.X = X
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
-    
-    @staticmethod
-    def updateH_MU_burg(V,W,H,gamma):
-    #gamma will be matrix, to have different steps on different columns
-        eps=np.finfo(float).eps
-        return H / (np.ones(H.shape) + gamma * H * (W.T @(np.ones(V.shape)- V/(W@H+np.full(V.shape,eps)))) + np.full(H.shape,eps))
 
     def run(self, callback):
-        m, n = self.X.shape
-        rank = self.rank
-        n_inner_iter = self.n_inner_iter
-
-        gammaH = 1/(np.ones((rank,m))@self.X*2)
-        gammaW = 1/(np.ones((rank,n))@self.X.T*2)
+        N, M = self.X.shape
+        R = self.rank
 
         if not self.factors_init:
             # Random init if init is not provided
-            self.W, self.H = [np.random.rand(m, rank), np.random.rand(rank, n)]
+            self.W, self.H = [np.random.rand(N, R), np.random.rand(R, M)]
         else:
             self.W, self.H = [np.copy(self.factors_init[i]) for i in range(2)]
 
-        while callback():
-            # W update
-            for _ in range(n_inner_iter):
-                self.W = self.updateH_MU_burg(self.X.T,self.H.T,self.W.T,gammaW).T
+        #not sure about this init
+        Y = self.W.copy()
+        Z = self.H.copy()
 
-            # H update
-            for _ in range(n_inner_iter):
-                self.H = self.updateH_MU_burg(self.X,self.W,self.H,gammaH)
+        #idk how to init these
+        X = np.zeros((N,M)) 
+        aX = np.zeros((N,M))
+        aY = np.zeros((N,R))
+        aZ = np.zeros((R,M))
+
+        while callback():
+
+            Y = (np.linalg.inv(Z@Z.T+np.eye(R))@(Z@X.T+self.W.T+(Z@aX.T-aY.T)/self.rho)).T
+            Z = np.linalg.inv(Y.T@Y+np.eye(R))@(Y.T@X+self.H+(Y.T@aX-aZ)/self.rho)
+
+            YZ = Y@Z
+
+            b = self.rho*YZ-aX-np.ones((N,M))
+            X = (b+np.sqrt((b)**2+4*self.rho*self.X))/(2*self.rho)
+
+            W = np.maximum(Y+aY/self.rho,0)
+            H = np.maximum(Z+aZ/self.rho,0)
+
+            aX = aX+self.rho*(X-YZ)
+            aY = aY+self.rho*(Y-W)
+            aZ = aZ+self.rho*(Z-H)
 
     def get_result(self):
         # The outputs of this function are the arguments of the

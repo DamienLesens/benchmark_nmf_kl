@@ -7,13 +7,12 @@ with safe_import_context() as import_ctx:
 
 class Solver(BaseSolver):
     """
-    Multiplicative Updates with Burg entropy
+    Primal-Dual algorithm
     """
     name = "fpa"
 
     parameters = {
-        'n_inner_iter': [5],
-        'loss': ['divergence']
+        'n_inner_iter': [5]
     }
 
     sampling_strategy = "callback"
@@ -27,12 +26,6 @@ class Solver(BaseSolver):
         self.X = X
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
-    
-    @staticmethod
-    def updateH_MU_burg(V,W,H,gamma):
-    #gamma will be matrix, to have different steps on different columns
-        eps=np.finfo(float).eps
-        return H / (np.ones(H.shape) + gamma * H * (W.T @(np.ones(V.shape)- V/(W@H+np.full(V.shape,eps)))) + np.full(H.shape,eps))
 
     def run(self, callback):
         N, M = self.X.shape
@@ -57,9 +50,6 @@ class Solver(BaseSolver):
         Wold = self.W.copy()
         Hbar = self.H.copy()
         Hold = self.H.copy()
-        
-
-        # eps = np.finfo(float).eps
 
         while callback():
             
