@@ -1,5 +1,5 @@
 from benchopt import BaseSolver, safe_import_context
-from benchopt.stopping_criterion import SufficientProgressCriterion
+from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -7,18 +7,18 @@ with safe_import_context() as import_ctx:
 
 class Solver(BaseSolver):
     """
-    Multiplicative Updates
+    Multiplicative Updates with Burg entropy
     """
-    name = "mu"
+    name = "mu_berg"
 
     parameters = {
         'n_inner_iter': [1],
         'loss': ['divergence']
     }
 
-    stopping_criterion = SufficientProgressCriterion(
-        strategy="callback", key_to_monitor="objective_kullback-leibler"
-    )
+    sampling_strategy = "callback"
+
+    stopping_criterion = NoCriterion()#SufficientProgressCriterion(strategy="callback", key_to_monitor="objective_kullback-leibler")
 
     def set_objective(self, X, rank, factors_init):
         # The arguments of this function are the results of the
@@ -28,6 +28,7 @@ class Solver(BaseSolver):
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
     
+    @staticmethod
     def updateH_MU_burg(V,W,H,gamma):
     #gamma will be matrix, to have different steps on different columns
         eps=np.finfo(float).eps
@@ -50,7 +51,7 @@ class Solver(BaseSolver):
         while callback():
             # W update
             for _ in range(n_inner_iter):
-                self.W = self.updateH_MU(self.X.T,self.H.T,self.W.T,gammaW).T
+                self.W = self.updateH_MU_burg(self.X.T,self.H.T,self.W.T,gammaW).T
 
             # H update
             for _ in range(n_inner_iter):

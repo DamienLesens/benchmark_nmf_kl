@@ -1,5 +1,5 @@
 from benchopt import BaseSolver, safe_import_context
-from benchopt.stopping_criterion import SufficientProgressCriterion
+from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -16,9 +16,9 @@ class Solver(BaseSolver):
         'loss': ['divergence']
     }
 
-    stopping_criterion = SufficientProgressCriterion(
-        strategy="callback", key_to_monitor="objective_kullback-leibler"
-    )
+    sampling_strategy = "callback"
+
+    stopping_criterion = NoCriterion()#SufficientProgressCriterion(strategy="callback", key_to_monitor="objective_kullback-leibler")
 
     def set_objective(self, X, rank, factors_init):
         # The arguments of this function are the results of the
@@ -28,6 +28,7 @@ class Solver(BaseSolver):
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
     
+    @staticmethod
     def updateH_MU(V,W,H):
         eps=np.finfo(float).eps
         return H * (W.T @ (V/(W@H+np.full(V.shape,eps))))/(W.T @ np.ones(V.shape)+np.full(W.T.shape,eps))
