@@ -7,8 +7,9 @@ solver: # list of example solvers to do benchmark
   - mu_berg
   - fpa
   - admm
-  - sn 
-  - ccd
+  - sn_python
+  - ccd_python
+  - som
 
 # note: use more repetitions to have quantiles on the plot
 n-repetitions: 10
