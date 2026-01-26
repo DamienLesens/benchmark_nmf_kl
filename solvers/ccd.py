@@ -13,7 +13,7 @@ class Solver(BaseSolver):
     name = "ccd"
 
     parameters = {
-        'n_inner_iter': [5]
+        'n_inner_iter': [2]
     }
 
     sampling_strategy = "iteration"
