@@ -10,6 +10,7 @@ solver: # list of example solvers to do benchmark
   - sn_python
   - ccd_python
   - som
+  - newton
 
 # note: use more repetitions to have quantiles on the plot
 n-repetitions: 10
