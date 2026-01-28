@@ -7,13 +7,12 @@ with safe_import_context() as import_ctx:
 
 class Solver(BaseSolver):
     """
-    Multiplicative Updates with Burg entropy
+    Second order partial majorisation minimized with HALS
     """
-    name = "newton"
+    name = "maj_HALS"
 
     parameters = {
         'n_inner_iter': [5],
-        'solving': ['hals'],
         'iter_HALS': [10,20,50]
     }
 
@@ -30,27 +29,25 @@ class Solver(BaseSolver):
         self.factors_init = factors_init  # None if not initialized beforehand
 
     @staticmethod
-    def update_HALS_H(V,W,H,I=50):
+    def update_maj_HALS_H(V,W,H0,I=50):
+        H = H0.copy()
         R,_ = H.shape
         eps=np.finfo(float).eps
 
-        Hwork = H.copy()
-
+        WtW = W.T@W
+        
         WH = W@H
-
         B2 = V/(WH**2+eps)
-        G = W.T@(2*V/(WH+eps)-np.ones(V.shape))
-        D = (W**2).T @B2
-        T = np.einsum("ia,ij,ik->ajk",W,B2,W)
-
+        beta = np.max(B2,axis=0)
+        Y = WH + (V/(WH+eps)-np.ones(V.shape))/beta
+        WtY = W.T@Y
         for it in range(I):
-            for a in range(R):
-                num = G[a,:]- (T[a,:,:] * Hwork.T).sum(axis=1)+T[a,:,a]*Hwork[a,:]
-                den = D[a,:]
-                Hwork[a,:] = np.maximum(num/(den+eps),eps)
-            
+            for k in range(R): 
+                num = WtY[k, :] - np.dot(WtW[k, :], H) + WtW[k, k] * H[k, :] 
+                den = WtW[k, k] 
+                H[k,:] = np.maximum(num / (den+eps),0)
 
-        return Hwork
+        return H
 
     def run(self, callback):
         N, M = self.X.shape
@@ -69,11 +66,11 @@ class Solver(BaseSolver):
 
             #update H
             for _ in range(D):
-                self.H = self.update_HALS_H(self.X,self.W,self.H,I=self.iter_HALS)
+                self.H = self.update_maj_HALS_H(self.X,self.W,self.H,I=self.iter_HALS)
 
             #update W
             for _ in range(D):
-                self.W = self.update_HALS_H(self.X.T,self.H.T,self.W.T,I=self.iter_HALS).T
+                self.W = self.update_maj_HALS_H(self.X.T,self.H.T,self.W.T,I=self.iter_HALS).T
 
     def get_result(self):
         # The outputs of this function are the arguments of the
