@@ -30,7 +30,7 @@ class Solver(BaseSolver):
     @staticmethod
     def updateH_MU(V,W,H):
         eps=np.finfo(float).eps
-        return H * (W.T @ (V/(W@H+np.full(V.shape,eps))))/(W.T @ np.ones(V.shape)+np.full(W.T.shape,eps))
+        return H * (W.T @ (V/(W@H+np.full(V.shape,eps))))/(W.T @ np.ones(V.shape)+np.full(H.shape,eps))
 
     def run(self, callback):
         m, n = self.X.shape
