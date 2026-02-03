@@ -1,0 +1,27 @@
+import numpy as np
+from scipy.io import loadmat
+
+from benchopt import BaseDataset
+from benchopt import config
+
+
+class Dataset(BaseDataset):
+
+    name = "Frey"
+
+    # List of parameters to generate the datasets. The benchmark will consider
+    # the cross product for each key in the dictionary.
+    parameters = {
+        'estimated_rank' : [25]
+    }
+
+    def get_data(self):
+        path = config.get_data_path("umist_cropped.mat")
+        
+        # Loading the data
+        dico = loadmat(path)
+
+        # dict is a python dictionnary. It contains the matrix we want to NMF
+        M = np.concatenate(dico['facedat'][0],axis=2).reshape((-1,575))
+
+        return dict(X=M, rank=self.estimated_rank, true_factors=None)
