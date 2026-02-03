@@ -12,7 +12,7 @@ class Solver(BaseSolver):
     name = "scalar_newton"
 
     parameters = {
-        'n_inner_iter': [5],
+        'n_inner_iter': [5],#should be 2 for CCD actually
         'method': ['SN','CCD']
     }
 
