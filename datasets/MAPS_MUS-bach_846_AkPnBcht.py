@@ -13,11 +13,6 @@ class Dataset(BaseDataset):
     # List of parameters to generate the datasets. The benchmark will consider
     # the cross product for each key in the dictionary.
     parameters = {
-        'target_duration': [30.0],
-        'max_freq': [5300.0],
-        'target_sr': [11025],
-        'n_fft': [2048],
-        'hop_length': [256],
         'estimated_rank' : [2, 11, 23, 45] #
     }
 
