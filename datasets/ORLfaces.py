@@ -8,6 +8,8 @@ from benchopt import config
 
 class Dataset(BaseDataset):
 
+    # https://www.kaggle.com/datasets/kasikrit/att-database-of-faces
+
     name = "ORLfaces"
 
     # List of parameters to generate the datasets. The benchmark will consider

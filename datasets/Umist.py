@@ -7,6 +7,8 @@ from benchopt import config
 
 class Dataset(BaseDataset):
 
+    # https://cs.nyu.edu/home/people/in_memoriam/roweis/data.html
+
     name = "Frey"
 
     # List of parameters to generate the datasets. The benchmark will consider

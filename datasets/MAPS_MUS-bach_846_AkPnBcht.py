@@ -8,6 +8,10 @@ from benchopt import config
 
 class Dataset(BaseDataset):
 
+    # https://github.com/cohenjer/MM-nmf/tree/main/data_and_scripts
+    # original source https://service.tsi.telecom-paristech.fr/cgi-bin/user-service/subscribe.cgi?ident=maps&form=&license=1
+
+
     name = "MAPS_MUS-bach_846_AkPnBcht"
 
     # List of parameters to generate the datasets. The benchmark will consider

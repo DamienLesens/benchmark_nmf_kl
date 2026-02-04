@@ -8,6 +8,8 @@ from benchopt import config
 
 class Dataset(BaseDataset):
 
+    # https://github.com/galeone/mlcnn/tree/master/mitcbcl/train/face
+
     name = "MIT-CBCL-face"
 
     # List of parameters to generate the datasets. The benchmark will consider

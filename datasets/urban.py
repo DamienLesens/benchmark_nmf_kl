@@ -7,6 +7,8 @@ from benchopt import config
 
 class Dataset(BaseDataset):
 
+    # https://github.com/cohenjer/MM-nmf/tree/main/data_and_scripts
+
     name = "urban"
 
     # List of parameters to generate the datasets. The benchmark will consider

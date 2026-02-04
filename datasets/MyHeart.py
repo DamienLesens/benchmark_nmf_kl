@@ -8,6 +8,8 @@ from benchopt import config
 
 class Dataset(BaseDataset):
 
+    # https://www.irit.fr/~Cedric.Fevotte/extras/icassp11/
+
     name = "MyHeart"
 
     # List of parameters to generate the datasets. The benchmark will consider
