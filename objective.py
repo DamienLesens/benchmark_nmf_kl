@@ -1,4 +1,5 @@
 from benchopt import BaseObjective, safe_import_context
+import scipy.sparse as sp
 
 # Protect import to allow manipulating objective without importing library
 # Useful for autocompletion and install commands
@@ -42,12 +43,18 @@ class Objective(BaseObjective):
         # The arguments of this function are the outputs of the
         # `get_result` method of the solver.
         # They are customizable.
-        WH = np.dot(W, H)
-        frobenius_loss = 1/2 * np.linalg.norm(self.X - WH, ord="fro")**2
-        kl_loss = np.sum(kl_div(self.X, WH))
+        if sp.issparse(self.X):
+            i,j = self.X.nonzero()
+            WHdata = np.einsum('ik,ik->i', W[i], H.T[j])
+            frobenius_loss = 1/2 * np.linalg.norm(self.X.data-WHdata)**2
+            kl_loss = np.sum(kl_div(self.X.data, WHdata))
+        else:
+            WH = np.dot(W, H)
+            frobenius_loss = 1/2 * np.linalg.norm(self.X - WH, ord="fro")**2
+            kl_loss = np.sum(kl_div(self.X, WH))
 
         output_dict = {
-            'value': frobenius_loss,
+            'value': kl_loss,
             'frobenius': frobenius_loss,
             'kullback-leibler': kl_loss,
         }
