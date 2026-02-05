@@ -42,7 +42,7 @@ class Solver(BaseSolver):
         Z = self.H.copy()
 
         #idk how to init these
-        X = np.zeros((N,M)) 
+        X = np.zeros((N,M)) # SHOULD BE W@H
         aX = np.zeros((N,M))
         aY = np.zeros((N,R))
         aZ = np.zeros((R,M))

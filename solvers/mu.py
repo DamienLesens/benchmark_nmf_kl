@@ -1,5 +1,7 @@
 from benchopt import BaseSolver, safe_import_context
 from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
+import scipy.sparse as sp
+from benchmark_utils.sparse_op import VoverWH
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -30,12 +32,14 @@ class Solver(BaseSolver):
     @staticmethod
     def updateH_MU(V,W,H):
         eps=np.finfo(float).eps
-        return H * (W.T @ (V/(W@H+np.full(V.shape,eps))))/(W.T @ np.ones(V.shape)+np.full(H.shape,eps))
+        return H * (W.T @ (V/(W@H+eps)))/(W.T @ np.ones(V.shape)+eps)
 
     def run(self, callback):
         m, n = self.X.shape
         rank = self.rank
         n_inner_iter = self.n_inner_iter
+
+        eps=np.finfo(float).eps
 
         if not self.factors_init:
             # Random init if init is not provided
@@ -45,12 +49,24 @@ class Solver(BaseSolver):
 
         while callback():
             # W update
+            oneHT = np.tile(np.sum(self.H,axis=1),(m,1))
             for _ in range(n_inner_iter):
-                self.W = self.updateH_MU(self.X.T,self.H.T,self.W.T).T
+                
+                if sp.issparse(self.X):
+                    Q = VoverWH(self.X,self.W,self.H)
+                    self.W = self.W * (Q @ self.H.T)/(oneHT+eps)
+                else:
+                    self.W = self.W * ((self.X/(self.W@self.H+eps))@self.H.T)/(oneHT+eps)
 
             # H update
+            WT1 = np.tile(np.sum(self.W,axis=0),(n,1)).T
             for _ in range(n_inner_iter):
-                self.H = self.updateH_MU(self.X,self.W,self.H)
+                
+                if sp.issparse(self.X):
+                    Q = VoverWH(self.X,self.W,self.H)
+                    self.H = self.H * (self.W.T @ Q)/(WT1+eps)
+                else:
+                    self.H = self.H * (self.W.T @ (self.X/(self.W@self.H+eps)))/(WT1+eps)
 
     def get_result(self):
         # The outputs of this function are the arguments of the

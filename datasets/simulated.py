@@ -11,7 +11,7 @@ class Dataset(BaseDataset):
     # the cross product for each key in the dictionary.
     parameters = {
         'm_dim, n_dim, true_rank, estimated_rank': [
-            (40, 40, 3, 3)],
+            (40, 40, 3, 3),(200,200,10,10),(200,200,30,30)],
         'snr': [100],
     }
 
