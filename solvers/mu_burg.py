@@ -29,12 +29,6 @@ class Solver(BaseSolver):
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
     
-    @staticmethod
-    def updateH_MU_burg(V,W,H,gamma):
-    #gamma will be matrix, to have different steps on different columns
-        eps=np.finfo(float).eps
-        return H / (np.ones(H.shape) + gamma * H * (W.T @(np.ones(V.shape)- V/(W@H+eps))) + eps)
-
     def run(self, callback):
         m, n = self.X.shape
         rank = self.rank

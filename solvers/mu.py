@@ -28,11 +28,6 @@ class Solver(BaseSolver):
         self.X = X
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
-    
-    @staticmethod
-    def updateH_MU(V,W,H):
-        eps=np.finfo(float).eps
-        return H * (W.T @ (V/(W@H+eps)))/(W.T @ np.ones(V.shape)+eps)
 
     def run(self, callback):
         m, n = self.X.shape
