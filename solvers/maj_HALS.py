@@ -1,5 +1,7 @@
 from benchopt import BaseSolver, safe_import_context
 from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
+from benchmark_utils.sparse_op import VoverWH,VoverWH2
+import scipy.sparse as sp
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -34,13 +36,21 @@ class Solver(BaseSolver):
         R,_ = H.shape
         eps=np.finfo(float).eps
 
+        N,M = V.shape
+
         WtW = W.T@W
         
-        WH = W@H
-        B2 = V/(WH**2+eps)
-        beta = np.max(B2,axis=0)
-        Y = WH + (V/(WH+eps)-np.ones(V.shape))/beta
-        WtY = W.T@Y
+        if sp.issparse(V):
+            B2 = VoverWH2(V,W,H)
+            beta = B2.max(axis=0).toarray()
+            margWN = W.sum(axis=0) #size R
+            WtY = WtW@H + (W.T@ (VoverWH(V,W,H,"csc")) - np.tile(margWN,(M,1)).T)/beta
+        else:
+            WH = W@H
+            B2 = V/(WH**2+eps)
+            beta = np.max(B2,axis=0)
+            WtY = WtW@H + W.T@(V/(WH+eps)-np.ones(V.shape))/beta
+        
         for it in range(I):
             for k in range(R): 
                 num = WtY[k, :] - np.dot(WtW[k, :], H) + WtW[k, k] * H[k, :] 
