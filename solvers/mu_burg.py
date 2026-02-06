@@ -1,5 +1,7 @@
 from benchopt import BaseSolver, safe_import_context
 from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
+import scipy.sparse as sp
+from benchmark_utils.sparse_op import VoverWH
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -37,9 +39,12 @@ class Solver(BaseSolver):
         m, n = self.X.shape
         rank = self.rank
         n_inner_iter = self.n_inner_iter
-
-        gammaH = 1/(np.ones((rank,m))@self.X*2)
-        gammaW = 1/(np.ones((rank,n))@self.X.T*2)
+        eps=np.finfo(float).eps
+        
+        linegammaH = 1/(self.X.sum(axis=0)*2) #size n
+        colgammaW = 1/(self.X.sum(axis=1)*2) #size m
+        gammaH =  np.tile(linegammaH,(rank,1))#1/(np.ones((rank,m))@self.X*2)
+        gammaW = np.tile(colgammaW,(rank,1)).T#1/(np.ones((rank,n))@self.X.T*2)
 
         if not self.factors_init:
             # Random init if init is not provided
@@ -49,12 +54,22 @@ class Solver(BaseSolver):
 
         while callback():
             # W update
+            oneHT = np.tile(np.sum(self.H,axis=1),(m,1))
             for _ in range(n_inner_iter):
-                self.W = self.updateH_MU_burg(self.X.T,self.H.T,self.W.T,gammaW).T
+                if sp.issparse(self.X):
+                    Q = VoverWH(self.X,self.W,self.H,'coo')
+                    self.W = self.W / (np.ones((m,rank)) + gammaW * self.W * (oneHT - Q @ self.H.T))
+                else:
+                    self.W = self.W / (np.ones((m,rank)) + gammaW * self.W * (oneHT - (self.X/(self.W@self.H+eps))@self.H.T))
 
             # H update
+            WT1 = np.tile(np.sum(self.W,axis=0),(n,1)).T
             for _ in range(n_inner_iter):
-                self.H = self.updateH_MU_burg(self.X,self.W,self.H,gammaH)
+                if sp.issparse(self.X):
+                    Q = VoverWH(self.X,self.W,self.H,'coo')
+                    self.H = self.H / (np.ones((rank,n)) + gammaH * self.H * (WT1 - self.W.T @ Q))
+                else:
+                    self.H = self.H / (np.ones((rank,n)) + gammaH * self.H * (WT1 - self.W.T @(self.X/(self.W@self.H+eps))))
 
     def get_result(self):
         # The outputs of this function are the arguments of the
