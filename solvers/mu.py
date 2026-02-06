@@ -48,7 +48,7 @@ class Solver(BaseSolver):
             for _ in range(n_inner_iter):
                 
                 if sp.issparse(self.X):
-                    Q = VoverWH(self.X,self.W,self.H,'coo')
+                    Q = VoverWH(self.X,self.W,self.H,'csr')
                     self.W = self.W * (Q @ self.H.T)/(oneHT+eps)
                 else:
                     self.W = self.W * ((self.X/(self.W@self.H+eps))@self.H.T)/(oneHT+eps)
@@ -58,7 +58,7 @@ class Solver(BaseSolver):
             for _ in range(n_inner_iter):
                 
                 if sp.issparse(self.X):
-                    Q = VoverWH(self.X,self.W,self.H,'coo')
+                    Q = VoverWH(self.X,self.W,self.H,'csc')
                     self.H = self.H * (self.W.T @ Q)/(WT1+eps)
                 else:
                     self.H = self.H * (self.W.T @ (self.X/(self.W@self.H+eps)))/(WT1+eps)

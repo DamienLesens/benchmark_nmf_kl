@@ -54,8 +54,8 @@ class Solver(BaseSolver):
             #update H
             for _ in range(D):
                 if sp.issparse(self.X):
-                    Q1 = VoverWH(self.X,self.W,self.H)
-                    Q2 = VoverWH2(self.X,self.W,self.H)
+                    Q1 = VoverWH(self.X,self.W,self.H,"csc")
+                    Q2 = VoverWH2(self.X,self.W,self.H,"csc")
                     self.H = np.maximum(self.H+gamma*(self.W.T@Q1-productWTNM)/(productWTR@Q2),eps)
                 else:
                     WH = self.W@self.H
@@ -69,8 +69,8 @@ class Solver(BaseSolver):
             #update W
             for _ in range(D):
                 if sp.issparse(self.X):
-                    Q1 = VoverWH(self.X,self.W,self.H)
-                    Q2 = VoverWH2(self.X,self.W,self.H)
+                    Q1 = VoverWH(self.X,self.W,self.H,"csr")
+                    Q2 = VoverWH2(self.X,self.W,self.H,"csr")
                     self.W = np.maximum(self.W+gamma*(Q1@self.H.T-productMNHT)/(Q2@productHTR),eps)
                 else:
                     WH = self.W@self.H

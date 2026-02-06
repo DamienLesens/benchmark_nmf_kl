@@ -51,7 +51,7 @@ class Solver(BaseSolver):
             oneHT = np.tile(np.sum(self.H,axis=1),(m,1))
             for _ in range(n_inner_iter):
                 if sp.issparse(self.X):
-                    Q = VoverWH(self.X,self.W,self.H,'coo')
+                    Q = VoverWH(self.X,self.W,self.H,'csr')
                     self.W = self.W / (np.ones((m,rank)) + gammaW * self.W * (oneHT - Q @ self.H.T))
                 else:
                     self.W = self.W / (np.ones((m,rank)) + gammaW * self.W * (oneHT - (self.X/(self.W@self.H+eps))@self.H.T))
@@ -60,7 +60,7 @@ class Solver(BaseSolver):
             WT1 = np.tile(np.sum(self.W,axis=0),(n,1)).T
             for _ in range(n_inner_iter):
                 if sp.issparse(self.X):
-                    Q = VoverWH(self.X,self.W,self.H,'coo')
+                    Q = VoverWH(self.X,self.W,self.H,'csc')
                     self.H = self.H / (np.ones((rank,n)) + gammaH * self.H * (WT1 - self.W.T @ Q))
                 else:
                     self.H = self.H / (np.ones((rank,n)) + gammaH * self.H * (WT1 - self.W.T @(self.X/(self.W@self.H+eps))))
