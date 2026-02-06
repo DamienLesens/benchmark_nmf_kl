@@ -46,8 +46,8 @@ class Objective(BaseObjective):
         if sp.issparse(self.X):
             i,j = self.X.nonzero()
             WHdata = np.einsum('ik,ik->i', W[i], H.T[j])
-            frobenius_loss = 1/2 * np.linalg.norm(self.X.data-WHdata)**2
-            kl_loss = np.sum(kl_div(self.X.data, WHdata))
+            frobenius_loss = 0.5 * (np.sum(self.X.data ** 2) - 2 * np.sum(self.X.data * WHdata) + np.sum((W.T @ W) * (H @ H.T)))
+            kl_loss = np.sum(kl_div(self.X.data, WHdata)) + np.sum(W.sum(axis=0) * H.sum(axis=1)) - np.sum(WHdata)
         else:
             WH = np.dot(W, H)
             frobenius_loss = 1/2 * np.linalg.norm(self.X - WH, ord="fro")**2

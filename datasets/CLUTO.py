@@ -19,7 +19,8 @@ class Dataset(BaseDataset):
         'collection' : ["cacmcisi","classic","cranmed","fbis","hitech",
                       "k1a","k1b","la1","la2","la12","mm","new3","ohscal",
                       "re0","re1","reviews","sports","tr11","tr12","tr23",
-                      "tr31","tr41","tr45","wap"]
+                      "tr31","tr41","tr45","wap"],
+        'sparse' : [True]
     }
 
     collection_to_rank = {
@@ -73,6 +74,9 @@ class Dataset(BaseDataset):
 
                     k+=1
         
-        V = coo_array((data, (i, j)), shape=(n_docs, n_terms))
+        if self.sparse:
+            V = coo_array((data, (i, j)), shape=(n_docs, n_terms))
+        else:
+            V = coo_array((data, (i, j)), shape=(n_docs, n_terms)).toarray()
 
         return dict(X=V, rank=self.collection_to_rank[self.collection], true_factors=None)
