@@ -14,7 +14,8 @@ class Solver(BaseSolver):
 
     parameters = {
         'n_inner_iter': [5],
-        'sinkhorn_init': [True]
+        'sinkhorn_init': [True],
+        'sinkhorn_freq': [None]
     }
 
     sampling_strategy = "callback"
@@ -56,6 +57,8 @@ class Solver(BaseSolver):
         Hbar = self.H.copy()
         Hold = self.H.copy()
 
+        it=0
+
         while callback():
             
             # ======= Update H =======
@@ -86,6 +89,10 @@ class Solver(BaseSolver):
                 self.W = np.maximum(self.W - (chi + 1) @ self.H.T * tau, 0)
                 Wbar = 2 * self.W - Wold
                 Wold = self.W.copy()
+            
+            it+=1
+            if self.sinkhorn_freq is not None and it%self.sinkhorn_freq==0:
+                self.W, self.H = sinkhorn(self.X,self.W,self.H)
 
     def get_result(self):
         # The outputs of this function are the arguments of the

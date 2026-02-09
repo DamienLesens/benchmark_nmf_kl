@@ -17,7 +17,8 @@ class Solver(BaseSolver):
     parameters = {
         'n_inner_iter': [5],#should be 2 for CCD actually
         'method': ['SN','CCD'],
-        'sinkhorn_init': [True]
+        'sinkhorn_init': [True],
+        'sinkhorn_freq': [None]
     }
 
     sampling_strategy = "callback"
@@ -65,6 +66,8 @@ class Solver(BaseSolver):
             else:
                 chj = np.max((self.X > 0) / np.sqrt(self.X), axis=0)
                 cwi = np.max((self.X > 0) / np.sqrt(self.X), axis=1)
+
+        it=0
 
         while callback():
 
@@ -141,6 +144,10 @@ class Solver(BaseSolver):
                         WH = np.maximum(WH, eps)
                 
                 self.H = Hnew
+            
+            it+=1
+            if self.sinkhorn_freq is not None and it%self.sinkhorn_freq==0:
+                self.W, self.H = sinkhorn(self.X,self.W,self.H)
 
     def get_result(self):
         # The outputs of this function are the arguments of the

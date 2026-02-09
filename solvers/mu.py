@@ -16,7 +16,8 @@ class Solver(BaseSolver):
 
     parameters = {
         'n_inner_iter': [1],
-        'sinkhorn_init': [True]
+        'sinkhorn_init': [True],
+        'sinkhorn_freq': [None]
     }
 
     sampling_strategy = "callback"
@@ -47,6 +48,8 @@ class Solver(BaseSolver):
         if self.sinkhorn_init:
             self.W, self.H = sinkhorn(self.X,self.W,self.H)
 
+        it=0
+
         while callback():
             # W update
             oneHT = np.tile(np.sum(self.H,axis=1),(m,1))
@@ -67,6 +70,10 @@ class Solver(BaseSolver):
                     self.H = self.H * (self.W.T @ Q)/(WT1+eps)
                 else:
                     self.H = self.H * (self.W.T @ (self.X/(self.W@self.H+eps)))/(WT1+eps)
+            
+            it+=1
+            if self.sinkhorn_freq is not None and it%self.sinkhorn_freq==0:
+                self.W, self.H = sinkhorn(self.X,self.W,self.H)
 
     def get_result(self):
         # The outputs of this function are the arguments of the

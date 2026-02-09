@@ -18,7 +18,8 @@ class Solver(BaseSolver):
         'n_inner_iter': [10],
         'gamma': [1.9],
         'method': ["AMUSOM","AmSOM"],
-        'sinkhorn_init': [True]
+        'sinkhorn_init': [True],
+        'sinkhorn_freq': [None]
     }
 
     sampling_strategy = "callback"
@@ -52,6 +53,8 @@ class Solver(BaseSolver):
 
         if not sp.issparse(self.X):
             WH = self.W.dot(self.H)
+
+        it=0
 
         while callback():
 
@@ -128,6 +131,10 @@ class Solver(BaseSolver):
                 #         inner_change_l = np.linalg.norm(deltaH)**2
                 #     if inner_change_l < delta*inner_change_0:
                 #         break
+            
+            it+=1
+            if self.sinkhorn_freq is not None and it%self.sinkhorn_freq==0:
+                self.W, self.H = sinkhorn(self.X,self.W,self.H)
                     
 
     def get_result(self):

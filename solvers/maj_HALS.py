@@ -17,7 +17,8 @@ class Solver(BaseSolver):
     parameters = {
         'n_inner_iter': [5],
         'iter_HALS': [10,20,50],
-        'sinkhorn_init': [True]
+        'sinkhorn_init': [True],
+        'sinkhorn_freq': [None]
     }
 
     sampling_strategy = "callback"
@@ -77,6 +78,8 @@ class Solver(BaseSolver):
 
         eps = np.finfo(float).eps
 
+        it=0
+
         while callback():
 
             #update H
@@ -86,6 +89,10 @@ class Solver(BaseSolver):
             #update W
             for _ in range(D):
                 self.W = self.update_maj_HALS_H(self.X.T,self.H.T,self.W.T,I=self.iter_HALS).T
+            
+            it+=1
+            if self.sinkhorn_freq is not None and it%self.sinkhorn_freq==0:
+                self.W, self.H = sinkhorn(self.X,self.W,self.H)
 
     def get_result(self):
         # The outputs of this function are the arguments of the

@@ -14,7 +14,8 @@ class Solver(BaseSolver):
 
     parameters = {
         'rho': [1,10,1000,10000],
-        'sinkhorn_init': [True]
+        'sinkhorn_init': [True],
+        'sinkhorn_freq': [None]
     }
 
     sampling_strategy = "callback"
@@ -53,6 +54,8 @@ class Solver(BaseSolver):
         aY = np.zeros((N,R))
         aZ = np.zeros((R,M))
 
+        it=0
+
         while callback():
 
             Y = (np.linalg.inv(Z@Z.T+np.eye(R))@(Z@X.T+self.W.T+(Z@aX.T-aY.T)/self.rho)).T
@@ -69,6 +72,10 @@ class Solver(BaseSolver):
             aX = aX+self.rho*(X-YZ)
             aY = aY+self.rho*(Y-self.W)
             aZ = aZ+self.rho*(Z-self.H)
+
+            it+=1
+            if self.sinkhorn_freq is not None and it%self.sinkhorn_freq==0:
+                self.W, self.H = sinkhorn(self.X,self.W,self.H)
 
     def get_result(self):
         # The outputs of this function are the arguments of the
