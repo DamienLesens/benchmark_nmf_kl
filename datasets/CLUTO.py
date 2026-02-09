@@ -66,7 +66,7 @@ class Dataset(BaseDataset):
             for doc_id, line in enumerate(f):
                 entries = list(map(float, line.split()))
                 for p in range(0, len(entries), 2):
-                    term_id = int(entries[p]) - 1      # 1-based → 0-based
+                    term_id = int(entries[p]) - 1 # 1-based to 0-based
                     value = entries[p + 1]
                     data[k]=value
                     i[k]=doc_id

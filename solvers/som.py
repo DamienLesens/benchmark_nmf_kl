@@ -15,7 +15,8 @@ class Solver(BaseSolver):
 
     parameters = {
         'n_inner_iter': [10],
-        'gamma': [1.9]
+        'gamma': [1.9],
+        'method': ["AMUSOM","AmSOM"]
     }
 
     sampling_strategy = "callback"
@@ -44,37 +45,84 @@ class Solver(BaseSolver):
 
         eps = np.finfo(float).eps
 
+        if not sp.issparse(self.X):
+            WH = self.W.dot(self.H)
+
         while callback():
 
-            #precomputing
-            margWN = self.W.sum(axis=0) #size R
-            margWR = self.W.sum(axis=1) #size N
-            productWTR = (self.W.T*(np.tile(margWR,(R,1))))
-            productWTNM = np.tile(margWN,(M,1)).T
-            #update H
-            for _ in range(D):
+            # Uses the true Hessian but only at first iteration of inner loop (should change but too costly)
+            sum_H = np.sum(self.H, axis = 1)[None,:] 
+            sum_H2 = np.sum(self.H, axis = 0)[None,:]
+            HH2 = (self.H*sum_H2).T
+            # inner_change_0 = 1
+            # inner_change_l = np.inf
+            for iw in range(D): 
+                #if k==0:
+                    # Lee Seung first iter
+                #    deltaW =  np.maximum(W *(((V/WH).dot(H.T))/sum_H-1), epsilon-W)
+                #else:
                 if sp.issparse(self.X):
-                    Q1 = VoverWH(self.X,self.W,self.H,"csc")
-                    Q2 = VoverWH2(self.X,self.W,self.H,"csc")
-                    self.H = np.maximum(self.H+gamma*(self.W.T@Q1-productWTNM)/(productWTR@Q2),eps)
+                    if self.method == "AMUSOM":
+                        temp_grad = VoverWH(self.X,self.W,self.H,"csr",eps=0)@(self.H.T)
+                        aux_W = gamma*self.W/temp_grad
+                        deltaW = np.maximum(aux_W*(temp_grad - sum_H), eps-self.W)
+                    elif self.method == "AmSOM":
+                        aux_W = gamma*1/(VoverWH2(self.X,self.W,self.H,"csr",eps=0)@HH2)
+                        deltaW = np.maximum(aux_W*(VoverWH(self.X,self.W,self.H,"csr",eps=0)@(self.H.T) - sum_H), eps-self.W)
+                    self.W = self.W + deltaW
                 else:
-                    WH = self.W@self.H
-                    self.H = np.maximum(self.H+gamma*(self.W.T@(self.X/(WH+eps))-productWTNM)/(productWTR@(self.X/(WH**2+eps))),eps)
-
-            #precomputing
-            margHM = self.H.sum(axis=1) #size R
-            margHR = self.H.sum(axis=0) #size M
-            productHTR = self.H.T*(np.tile(margHR,(R,1)).T)
-            productMNHT = np.tile(margHM,(N,1))
-            #update W
-            for _ in range(D):
+                    if self.method == "AMUSOM":
+                        temp_grad = (self.X/WH).dot(self.H.T)
+                        aux_W = gamma*self.W/temp_grad
+                        deltaW = np.maximum(aux_W*(temp_grad - sum_H), eps-self.W)
+                    elif self.method == "AmSOM":
+                        aux_W = gamma*1/((self.X/WH**2).dot(HH2))
+                        deltaW = np.maximum(aux_W*((self.X/WH).dot(self.H.T) - sum_H), eps-self.W)
+                    self.W = self.W + deltaW
+                    WH = self.W.dot(self.H)
+                # if k>0: # no early stopping the first iteration, default is no dynamic stopping
+                #     if iw==0:
+                #         inner_change_0 = np.linalg.norm(deltaW)**2
+                #     else:
+                #         inner_change_l = np.linalg.norm(deltaW)**2
+                #     if inner_change_l < self.delta*inner_change_0:
+                #         break
+                
+            # FIXED W ESTIMATE H  
+            sum_W = np.sum(self.W, axis = 0)[:, None]
+            sum_W2= np.sum(self.W, axis = 1)[:, None]
+            WW2 = (self.W*sum_W2).T
+            # inner_change_0 = 1
+            # inner_change_l = np.inf
+            for ih in range(D):
                 if sp.issparse(self.X):
-                    Q1 = VoverWH(self.X,self.W,self.H,"csr")
-                    Q2 = VoverWH2(self.X,self.W,self.H,"csr")
-                    self.W = np.maximum(self.W+gamma*(Q1@self.H.T-productMNHT)/(Q2@productHTR),eps)
+                    if self.method == "AMUSOM":
+                        temp_grad = (self.W.T) @ VoverWH(self.X, self.W, self.H, "csr",eps=0)
+                        aux_H = gamma*self.H/temp_grad
+                        deltaH = np.maximum(aux_H*(temp_grad - sum_W), eps-self.H)
+                    elif self.method == "AmSOM":
+                        den = WW2 @ VoverWH2(self.X, self.W, self.H, "csr",eps=0)
+                        aux_H = gamma / den
+                        # aux_H = gamma*1/(WW2.dot(VoverWH2(self.X,self.W,self.H,"csr")))
+                        deltaH = np.maximum(aux_H*((self.W.T)@(VoverWH(self.X,self.W,self.H,"csr",eps=0)) - sum_W), eps-self.H)
+                    self.H = self.H + deltaH
                 else:
-                    WH = self.W@self.H
-                    self.W = np.maximum(self.W+gamma*((self.X/(WH+eps))@self.H.T-productMNHT)/((self.X/(WH**2+eps))@productHTR),eps)
+                    if self.method == "AMUSOM":
+                        temp_grad = (self.W.T).dot(self.X/WH)
+                        aux_H = gamma*self.H/temp_grad
+                        deltaH = np.maximum(aux_H*(temp_grad - sum_W), eps-self.H)
+                    elif self.method == "AmSOM":
+                        aux_H = gamma*1/(WW2.dot(self.X/(WH**2)))
+                        deltaH = np.maximum(aux_H*((self.W.T).dot(self.X/WH) - sum_W), eps-self.H)
+                    self.H = self.H + deltaH
+                    WH = self.W.dot(self.H)
+                # if k>0: # no early stopping the first iteration
+                #     if ih==0:
+                #         inner_change_0 = np.linalg.norm(deltaH)**2
+                #     else:
+                #         inner_change_l = np.linalg.norm(deltaH)**2
+                #     if inner_change_l < delta*inner_change_0:
+                #         break
                     
 
     def get_result(self):
@@ -82,46 +130,3 @@ class Solver(BaseSolver):
         # `compute` method of the objective.
         # They are customizable.
         return dict(W=self.W, H=self.H)
-
-    # def run(self, callback):
-    #     N, M = self.X.shape
-    #     R = self.rank
-    #     D = self.n_inner_iter
-    #     gamma = self.gamma
-
-    #     if not self.factors_init:
-    #         # Random init if init is not provided
-    #         self.W, self.H = [np.random.rand(R, N), np.random.rand(R, M)]
-    #     else:
-    #         self.W, self.H = [np.copy(self.factors_init[0]).T, np.copy(self.factors_init[1])]
-
-    #     eps = np.finfo(float).eps
-
-    #     while callback():
-
-    #         #precomputing
-    #         margWN = self.W @ np.ones(N) 
-    #         margWR = np.ones(R) @ self.W
-    #         productWR = self.W*(np.tile(margWR,(R,1)))
-    #         productWNM = np.tile(margWN[:,None],(1,M))
-    #         #update H
-    #         for _ in range(D):
-    #             WTH = self.W.T@self.H
-    #             self.H = np.maximum(self.H+gamma*(self.W@(self.X/(WTH+eps))-productWNM)/(productWR@(self.X/(WTH**2+eps))),eps)
-
-    #         #precomputing
-    #         margHM = self.H @ np.ones(M)
-    #         margHR = np.ones(R) @ self.H
-    #         productHR = self.H*(np.tile(margHR,(R,1)))
-    #         productHMN = np.tile(margHM[:,None],(1,N))
-    #         #update W
-    #         for _ in range(D):
-    #             HTW = self.H.T@self.W
-    #             self.W = np.maximum(self.W+gamma*(self.H@(self.X.T/(HTW+eps))-productHMN)/(productHR@(self.X.T/(HTW**2+eps))),eps)
-                
-
-    # def get_result(self):
-    #     # The outputs of this function are the arguments of the
-    #     # `compute` method of the objective.
-    #     # They are customizable.
-    #     return dict(W=self.W.T, H=self.H)
