@@ -1,5 +1,6 @@
 from benchopt import BaseSolver, safe_import_context
 from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
+from benchmark_utils.scaling import sinkhorn
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -12,7 +13,8 @@ class Solver(BaseSolver):
     name = "fpa"
 
     parameters = {
-        'n_inner_iter': [5]
+        'n_inner_iter': [5],
+        'sinkhorn_init': [True]
     }
 
     sampling_strategy = "callback"
@@ -37,6 +39,9 @@ class Solver(BaseSolver):
             self.W, self.H = [np.random.rand(N, R), np.random.rand(R, M)]
         else:
             self.W, self.H = [np.copy(self.factors_init[i]) for i in range(2)]
+        
+        if self.sinkhorn_init:
+            self.W, self.H = sinkhorn(self.X,self.W,self.H)
         
         WH = self.W @ self.H
         chi = WH#-V / WH

@@ -2,6 +2,7 @@ from benchopt import BaseSolver, safe_import_context
 from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
 import scipy.sparse as sp
 from benchmark_utils.sparse_op import VoverWH,VoverWH2
+from benchmark_utils.scaling import sinkhorn
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -15,7 +16,8 @@ class Solver(BaseSolver):
 
     parameters = {
         'n_inner_iter': [5],#should be 2 for CCD actually
-        'method': ['SN','CCD']
+        'method': ['SN','CCD'],
+        'sinkhorn_init': [True]
     }
 
     sampling_strategy = "callback"
@@ -42,6 +44,9 @@ class Solver(BaseSolver):
             self.W, self.H = [np.random.rand(N, R), np.random.rand(R, M)]
         else:
             self.W, self.H = [np.copy(self.factors_init[i]) for i in range(2)]
+        
+        if self.sinkhorn_init:
+            self.W, self.H = sinkhorn(self.X,self.W,self.H)
         
         if sp.issparse(self.X):
             i,j = self.X.nonzero()

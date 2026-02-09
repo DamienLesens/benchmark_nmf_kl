@@ -2,6 +2,7 @@ from benchopt import BaseSolver, safe_import_context
 from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
 import scipy.sparse as sp
 from benchmark_utils.sparse_op import VoverWH
+from benchmark_utils.scaling import sinkhorn
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -14,7 +15,8 @@ class Solver(BaseSolver):
     name = "mu_berg"
 
     parameters = {
-        'n_inner_iter': [1]
+        'n_inner_iter': [1],
+        'sinkhorn_init': [True]
     }
 
     sampling_strategy = "callback"
@@ -45,6 +47,9 @@ class Solver(BaseSolver):
             self.W, self.H = [np.random.rand(m, rank), np.random.rand(rank, n)]
         else:
             self.W, self.H = [np.copy(self.factors_init[i]) for i in range(2)]
+        
+        if self.sinkhorn_init:
+            self.W, self.H = sinkhorn(self.X,self.W,self.H)
 
         while callback():
             # W update

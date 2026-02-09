@@ -1,5 +1,6 @@
 from benchopt import BaseSolver, safe_import_context
 from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
+from benchmark_utils.scaling import sinkhorn
 
 with safe_import_context() as import_ctx:
     import numpy as np
@@ -12,7 +13,8 @@ class Solver(BaseSolver):
     name = "admm"
 
     parameters = {
-        'rho': [1,10,1000,10000]
+        'rho': [1,10,1000,10000],
+        'sinkhorn_init': [True]
     }
 
     sampling_strategy = "callback"
@@ -26,6 +28,7 @@ class Solver(BaseSolver):
         self.X = X
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
+        
 
     def run(self, callback):
         N, M = self.X.shape
@@ -36,6 +39,9 @@ class Solver(BaseSolver):
             self.W, self.H = [np.random.rand(N, R), np.random.rand(R, M)]
         else:
             self.W, self.H = [np.copy(self.factors_init[i]) for i in range(2)]
+
+        if self.sinkhorn_init:
+            self.W, self.H = sinkhorn(self.X,self.W,self.H)
 
         #not sure about this init
         Y = self.W.copy()
