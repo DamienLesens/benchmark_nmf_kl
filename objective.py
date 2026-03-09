@@ -48,15 +48,23 @@ class Objective(BaseObjective):
             WHdata = np.einsum('ik,ik->i', W[i], H.T[j])
             frobenius_loss = 0.5 * (np.sum(self.X.data ** 2) - 2 * np.sum(self.X.data * WHdata) + np.sum((W.T @ W) * (H @ H.T)))
             kl_loss = np.sum(kl_div(self.X.data, WHdata)) + np.sum(W.sum(axis=0) * H.sum(axis=1)) - np.sum(WHdata)
+            kl_linear = np.sum(W.sum(axis=0) * H.sum(axis=1)) - np.sum(self.X.data)
+            kl_log = np.sum(self.X.data*np.log(self.X.data/WHdata))
+            
         else:
             WH = np.dot(W, H)
             frobenius_loss = 1/2 * np.linalg.norm(self.X - WH, ord="fro")**2
             kl_loss = np.sum(kl_div(self.X, WH))
+            kl_linear = np.sum(WH-self.X)
+            kl_log = np.sum(self.X*np.log(self.X/WH))
+            
 
         output_dict = {
             'value': kl_loss,
             'frobenius': frobenius_loss,
             'kullback-leibler': kl_loss,
+            'kl-log': kl_log,
+            'kl-linear': kl_linear
         }
 
         if self.true_factors:
