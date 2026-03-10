@@ -10,7 +10,7 @@ with safe_import_context() as import_ctx:
 
 class Solver(BaseSolver):
     """
-    Multiplicative Updates with Burg entropy
+    AmSOM and AMUSOM
     """
     name = "som"
 
