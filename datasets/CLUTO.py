@@ -3,7 +3,7 @@ from scipy.sparse import coo_array
 
 from benchopt import BaseDataset
 from benchopt import config
-from benchmark_utils.sparse_op import remove_zero_columns_coo
+from benchmark_utils.sparse_op import remove_zero_columns_and_rows_coo
 
 class Dataset(BaseDataset):
 
@@ -75,7 +75,9 @@ class Dataset(BaseDataset):
                     k+=1
         
         V = coo_array((data, (i, j)), shape=(n_docs, n_terms))
-        V = remove_zero_columns_coo(V)
+        # print(V.shape)
+        V = remove_zero_columns_and_rows_coo(V)
+        # print(V.shape)
         
         if not(self.sparse):
             V = V.toarray()
