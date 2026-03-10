@@ -19,7 +19,8 @@ class Solver(BaseSolver):
         'iter_HALS': [10,20,50],
         'gamma' : [1.9],
         'sinkhorn_init': [True],
-        'sinkhorn_freq': [None]
+        'sinkhorn_freq': [None],
+        'diag': ["max","mean"]
     }
 
     sampling_strategy = "callback"
@@ -45,20 +46,29 @@ class Solver(BaseSolver):
         
         if sp.issparse(V):
             B2 = VoverWH2(V,W,H)
-            beta = B2.max(axis=0).toarray()
+            match self.diag:
+                case "max":
+                    beta = B2.max(axis=0).toarray()
+                case "mean":
+                    beta = B2.sum(axis=0)/N
             margWN = W.sum(axis=0) #size R
             WtY = WtW@H + self.gamma*(W.T@ (VoverWH(V,W,H,"csc")) - np.tile(margWN,(M,1)).T)/beta
         else:
             WH = W@H
             B2 = V/(WH**2+eps)
-            beta = np.max(B2,axis=0)
+            match self.diag:
+                case "max":
+                    beta = np.max(B2,axis=0)
+                case "mean":
+                    beta = B2.sum(axis=0)/N
+            
             WtY = WtW@H + self.gamma*W.T@(V/(WH+eps)-np.ones(V.shape))/beta
         
         for it in range(self.iter_HALS):
             for k in range(R): 
                 num = WtY[k, :] - np.dot(WtW[k, :], H) + WtW[k, k] * H[k, :] 
                 den = WtW[k, k] 
-                H[k,:] = np.maximum(num / (den+eps),0)
+                H[k,:] = np.maximum(num / (den),eps)
 
         return H
 
