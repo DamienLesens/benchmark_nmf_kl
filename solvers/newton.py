@@ -24,7 +24,7 @@ class Solver(BaseSolver):
         'method': ["full","random","einsum","svd"],
         'S': [None],
         'svd_tol': [0.9,0.95,0.99],
-        'balancing': [True]
+        'balancing': [False]
     }
 
     sampling_strategy = "callback"
@@ -64,11 +64,11 @@ class Solver(BaseSolver):
                     return np.einsum("ia,ik,ij->akj",W,W,VoverWHs)
                 case "full":#works
                     # WW = (W[:,:,None]*W[:,None,:]).reshape(N,-1)
-                    print("norm VoverWH2", np.linalg.norm(VoverWHs))
-                    print("max VoverWH2",np.max(VoverWHs))
+                    # print("norm VoverWH2", np.linalg.norm(VoverWHs))
+                    # print("max VoverWH2",np.max(VoverWHs))
                     T = self.WWT @ VoverWHs #shape (R*R,M)
                     T = T.reshape(self.rank,self.rank,M)
-                    print("norm T",np.linalg.norm(T))
+                    # print("norm T",np.linalg.norm(T))
                     return T
                 case "random":#sketching for each column independantly
                     # P = np.random((m, k))
@@ -115,7 +115,7 @@ class Solver(BaseSolver):
         eps=np.finfo(float).eps
 
         #tensor of hessians need to have shape RxRxN
-
+        N,M = V.shape
         Hwork = H.copy()
         
 
@@ -169,26 +169,23 @@ class Solver(BaseSolver):
 
         return Hwork 
         """
-    
+
         if sp.issparse(self.X):
             # sum_W = np.sum(self.W, axis = 0)[:, None]
-            B2 = VoverWH2(V,W,H,type="csr",eps=0)
+            T = self.WWT @ VoverWH2(V,W,H,type="csr",eps=0)
+            T = T.reshape(self.rank,self.rank,M)
             G = W.T@(2*VoverWH(V,W,H,type="csr",eps=0))-self.sum_W
 
         else:
             WH = W@H
             B2 = V/(WH**2) #sparse
             G = W.T@(2*V/(WH))-self.sum_W #sparse
-        
-        D = (W**2).T @B2
-        T = self.compute_hessians(W,B2)
+            T = self.compute_hessians(W,B2)
 
         for it in range(self.iter_HALS):
             for a in range(R):
-                num = G[a,:]- (T[a,:,:] * Hwork).sum(axis=0)+T[a,a,:]*Hwork[a,:]
-                den = D[a,:]
-                Hwork[a,:] = np.maximum(num/(den+eps),eps)
-            
+                deltaH = np.maximum((G[a,:]- (T[a,:,:] * Hwork).sum(axis=0))/T[a,a,:], eps-Hwork[a,:])
+                Hwork[a,:] = Hwork[a,:]+deltaH
 
         return Hwork
 
@@ -217,11 +214,11 @@ class Solver(BaseSolver):
             #update H
             self.sum_W = np.sum(self.W, axis = 0)[:, None]
             #from here we can renormalize W if we want, to improve balancing
-            print("norm W", np.linalg.norm(self.W))
-            print("median W",np.median(self.W))
-            print("norm H", np.linalg.norm(self.H))
-            print("norm V", np.linalg.norm(self.X))
-            print("mean W", np.mean(self.W))
+            # print("norm W", np.linalg.norm(self.W))
+            # print("median W",np.median(self.W))
+            # print("norm H", np.linalg.norm(self.H))
+            # print("norm V", np.linalg.norm(self.X))
+            # print("mean W", np.mean(self.W))
             #balancing 
             if self.balancing:
                 medW = np.median(self.W)
@@ -233,7 +230,7 @@ class Solver(BaseSolver):
 
             # self.W *= 1e10
             self.WWT = ((self.W[:,:,None]*self.W[:,None,:]).reshape(N,-1)).T#shape (N,R*R)
-            print("norm WWT", np.linalg.norm(self.WWT))
+            # print("norm WWT", np.linalg.norm(self.WWT))
             if self.method=="svd":
                 U,S,Vh = np.linalg.svd(self.WWT,full_matrices=False)
                 E = S**2
@@ -251,7 +248,7 @@ class Solver(BaseSolver):
             # print(S.tolist())
             for _ in range(D):
                 self.H = self.update_HALS_H(self.X,self.W,self.H)
-                print("median H",np.median(self.H))
+                # print("median H",np.median(self.H))
                 # print(self.H)
 
             if self.balancing:
@@ -268,13 +265,13 @@ class Solver(BaseSolver):
                 print(factor)
                 self.H *=factor
 
-            print("norm W", np.linalg.norm(self.H.T))
-            print("median W",np.median(self.H))
-            print("norm H", np.linalg.norm(self.W))
-            print("norm V", np.linalg.norm(self.X))
-            print("mean W", np.mean(self.H.T))
+            # print("norm W", np.linalg.norm(self.H.T))
+            # print("median W",np.median(self.H))
+            # print("norm H", np.linalg.norm(self.W))
+            # print("norm V", np.linalg.norm(self.X))
+            # print("mean W", np.mean(self.H.T))
             self.WWT = (((self.H.T[:,:,None])*(self.H.T[:,None,:])).reshape(M,-1)).T
-            print("norm WWT", np.linalg.norm(self.WWT))
+            # print("norm WWT", np.linalg.norm(self.WWT))
             if self.method=="svd":
                 U,S,Vh = np.linalg.svd(self.WWT,full_matrices=False)
                 E = S**2
@@ -292,7 +289,7 @@ class Solver(BaseSolver):
             # print(S.tolist())
             for _ in range(D):
                 self.W = self.update_HALS_H(self.X.T,self.H.T,self.W.T).T
-                print("median H",np.median(self.W))
+                # print("median H",np.median(self.W))
                 # print(self.W)
             
             if self.balancing:
@@ -369,4 +366,37 @@ I need to focus to understand dynamics, but I think it is somewhat dommed becaus
 I think these dynamics are essential for second order codes
 
 I should test the sparse code again with that in mind, compare it to AmSOM, because AmSOM works (check), so it also should work
+
+I think the main issue is that there can be huge dynamics in gradient and second order terms, especialy when we set to zero stuff a lot
+(AmSOM might not set a lot of stuff to eps btw)
+
+The main issue might also be that there are a lot of dynamics in T, so relative error does not mean a lot
+should measure the relative error on each hessian if they have quite different magnitudes
+
+what is important is not the total relative error, but the relative error BY HESSIAN (I think, to verify)
+
+
+if sp.issparse(self.X):
+        # sum_W = np.sum(self.W, axis = 0)[:, None]
+        B2 = VoverWH2(V,W,H,type="csr",eps=0)
+        G = W.T@(2*VoverWH(V,W,H,type="csr",eps=0))-self.sum_W
+
+    else:
+        WH = W@H
+        B2 = V/(WH**2) #sparse
+        G = W.T@(2*V/(WH))-self.sum_W #sparse
+    
+    D = (W**2).T @B2
+    T = self.compute_hessians(W,B2)
+
+    for it in range(self.iter_HALS):
+        for a in range(R):
+            num = G[a,:]- (T[a,:,:] * Hwork).sum(axis=0)+T[a,a,:]*Hwork[a,:]
+            den = D[a,:]
+            Hwork[a,:] = np.maximum(num/(den+eps),eps)
+        
+
+    return Hwork
+
+
 """
