@@ -7,6 +7,7 @@ import torch
 
 with safe_import_context() as import_ctx:
     import numpy as np
+    from scipy.special import kl_div
 
 
 class Solver(BaseSolver):
@@ -21,10 +22,12 @@ class Solver(BaseSolver):
         'iter_HALS': [10,20,50],
         'sinkhorn_init': [True],
         'sinkhorn_freq': [None],
-        'method': ["full","random","einsum","svd"],
+        'method': ["full","random","einsum","svd","sym"],
         'S': [None],
         'svd_tol': [0.9,0.95,0.99],
-        'balancing': [False]
+        'balancing': [False],
+        'gamma': [1,1.5,1.9],
+        'beta': [None]
     }
 
     sampling_strategy = "callback"
@@ -70,6 +73,16 @@ class Solver(BaseSolver):
                     T = T.reshape(self.rank,self.rank,M)
                     # print("norm T",np.linalg.norm(T))
                     return T
+                case "sym":
+                    idx_i, idx_j = np.triu_indices(self.rank)
+                    # print(WWT.shape)
+                    T_upper = self.WWT_upper @ VoverWHs  # shape (R*(R+1)//2, M)
+
+                    # Reconstruct the full (R, R, M) tensor by symmetry
+                    T = np.empty((self.rank, self.rank, M))
+                    T[idx_i, idx_j] = T_upper  # upper triangle
+                    T[idx_j, idx_i] = T_upper
+                    return T
                 case "random":#sketching for each column independantly
                     # P = np.random((m, k))
                     sumWs = np.sum(W**2,axis=1)
@@ -89,11 +102,11 @@ class Solver(BaseSolver):
 
                     sparseMat = sp.csr_matrix((Mdata,(rows,cols)),shape=(M,N))
 
-                    T = sparseMat@self.WW
+                    T = self.WWT @ sparseMat.T
                     # print(T.shape,type(T))
                     # print(M.shape,type(M))
                     # print(WW.shape,type(WW))
-                    T = T.reshape(M, self.rank, self.rank).transpose(1, 2, 0) # M@WW has shape (M,R*R)
+                    T = T.reshape(self.rank, self.rank, M)#.transpose(1, 2, 0) # M@WW has shape (M,R*R)
 
                     Ttrue = np.einsum("ia,ik,ij->akj",W,W,VoverWHs)
 
@@ -106,7 +119,9 @@ class Solver(BaseSolver):
                     T = self.factorL@T0
                     T = T.reshape(self.rank,self.rank,M)
                     Ttrue = (self.WWT @ VoverWHs).reshape(self.rank,self.rank,M)
-                    print("error T",np.linalg.norm(Ttrue-T)/np.linalg.norm(Ttrue))
+                    # print("error T",np.linalg.norm(Ttrue-T)/np.linalg.norm(Ttrue))
+                    hessian_err = np.array([np.linalg.norm(T[:,:,j]-Ttrue[:,:,j])/np.linalg.norm(Ttrue[:,:,j]) for j in range(M)])
+                    print(np.max(hessian_err))
                     print("norm True",np.linalg.norm(Ttrue))
                     return T
 
@@ -170,22 +185,133 @@ class Solver(BaseSolver):
         return Hwork 
         """
 
-        if sp.issparse(self.X):
+        if sp.issparse(V):
             # sum_W = np.sum(self.W, axis = 0)[:, None]
             T = self.WWT @ VoverWH2(V,W,H,type="csr",eps=0)
             T = T.reshape(self.rank,self.rank,M)
-            G = W.T@(2*VoverWH(V,W,H,type="csr",eps=0))-self.sum_W
+            G = self.gamma*(W.T@(2*VoverWH(V,W,H,type="csr",eps=0))-self.sum_W)
 
         else:
             WH = W@H
             B2 = V/(WH**2) #sparse
-            G = W.T@(2*V/(WH))-self.sum_W #sparse
+            G = self.gamma*(W.T@(2*V/(WH))-self.sum_W) #sparse
             T = self.compute_hessians(W,B2)
 
+            # WHwork = WH
+
         for it in range(self.iter_HALS):
+            # print("iter:",it)
             for a in range(R):
-                deltaH = np.maximum((G[a,:]- (T[a,:,:] * Hwork).sum(axis=0))/T[a,a,:], eps-Hwork[a,:])
-                Hwork[a,:] = Hwork[a,:]+deltaH
+                # print(a)
+                deltaH = np.maximum((G[a,:]- (T[a,:,:] * Hwork).sum(axis=0))/T[a,a,:], eps-Hwork[a,:]) #deltaH can be used to decide early exit, or backtracking, cost R*M
+
+                """
+                #backtracking, let's do it stupidly for now
+
+                # W_a    = W[:, a]                          # cache slice once
+                # Wa_dH  = np.outer(W_a, deltaH)            # (N, M) — computed ONCE, reused every iter
+
+                # gamma  = np.ones(M)
+
+                # if self.beta is not None:
+                #     active = np.ones(M, dtype=bool)
+                #     rhs    = np.sum(kl_div(self.X, WHwork), axis=0)   # (M,) — outside loop
+                #     count  = 0
+
+                #     while np.any(active) and count < 4:
+                #         active_idx = np.where(active)[0]              # reuse inside iter
+
+                #         # trial matrix: only for active columns, no redundant outer()
+                #         trial   = WHwork[:, active_idx] + Wa_dH[:, active_idx] * gamma[active_idx]
+                #         f_trial = np.sum(kl_div(self.X[:, active_idx], trial), axis=0)
+
+                #         ok = f_trial <= rhs[active_idx]
+                #         active[active_idx[ok]] = False                # deactivate converged cols
+                #         gamma[active] *= self.beta
+                #         count += 1
+
+                    # gamma[active] = 0
+
+                # final update — single outer product via broadcasting
+                # WHwork   += Wa_dH * gamma          # no extra np.outer call
+                # Hwork[a, :] += deltaH * gamma
+
+                # gamma = np.ones(M)
+                # if not(self.beta is None):
+                #     active = np.ones(M,dtype=bool) #keeping track of active columns
+                #     rhs = np.sum(kl_div(self.X,WHwork),axis=0) #ok for non sparse for now
+                #     count=0
+                #     while np.any(active) and count<4: #or do a fix nb of iter and set to 0 if too much iter
+                #         # H_trial = self.H[:,active]+ Delta[:,active]*gamma[active]
+                #         f_trial = np.sum(kl_div(self.X[:,active],WHwork[:,active]+np.outer(W[:,a],gamma[active]*deltaH[active])),axis=0)
+                #         rhs_trial = rhs[active]
+                #         ok = f_trial <= rhs_trial
+                #         active_indices = np.where(active)[0]
+                #         active[active_indices[ok]]=False
+
+                #         gamma[active] *= self.beta
+                #         count+=1
+                #         print(count)
+                    
+                #     gamma[active]=0
+                #     WHwork = WHwork + np.outer(W[:,a],gamma*deltaH)
+                """
+
+                Hwork[a,:] += deltaH
+                
+        deltaHtot = Hwork-H
+
+        #backtracking, needs sparse adaptation
+
+        if self.beta is not None:
+            
+            """
+            gamma = np.ones(M)
+
+            WdeltaHtot = W@deltaHtot
+            active = np.ones(M, dtype=bool)
+            rhs    = np.sum(kl_div(V, WH), axis=0)   # O(NM)
+            count  = 0
+
+            while np.any(active) and count < 5:
+                print(count)
+                active_idx = np.where(active)[0]              # reuse inside iter
+
+                # trial matrix: only for active columns, no redundant outer()
+                trial   = WH[:, active_idx] + WdeltaHtot[:, active_idx] * gamma[active_idx]
+                f_trial = np.sum(kl_div(V[:, active_idx], trial), axis=0)
+
+                ok = f_trial <= rhs[active_idx]
+                active[active_idx[ok]] = False                # deactivate converged cols
+                gamma[active] *= self.beta
+                count += 1
+
+            gamma[active] = 0
+
+            return H+deltaHtot*gamma
+            """
+
+            WdeltaHtot = W@deltaHtot
+
+            gamma  = np.ones(M)
+            active = np.ones(M, dtype=bool)
+            rhs    = np.sum(kl_div(V, WH), axis=0)
+            count  = 0
+
+            while np.any(active) and count < 3:
+                trial   = WH + WdeltaHtot * gamma          # full (N, M) — contiguous, no copy
+                f_trial = np.sum(kl_div(V, trial), axis=0) # full (M,)   — contiguous, no copy
+
+                ok      = f_trial <= rhs                   # (M,) bool
+                active &= ~ok                              # deactivate converged cols
+                gamma[active] *= self.beta                 # only scalar-ish update
+                count  += 1
+
+            print(count,active.sum())
+
+            gamma[active] = 0
+            return H + deltaHtot * gamma
+
 
         return Hwork
 
@@ -212,6 +338,7 @@ class Solver(BaseSolver):
             
 
             #update H
+            print("update H")
             self.sum_W = np.sum(self.W, axis = 0)[:, None]
             #from here we can renormalize W if we want, to improve balancing
             # print("norm W", np.linalg.norm(self.W))
@@ -229,17 +356,23 @@ class Solver(BaseSolver):
                 self.W *=factor
 
             # self.W *= 1e10
-            self.WWT = ((self.W[:,:,None]*self.W[:,None,:]).reshape(N,-1)).T#shape (N,R*R)
+            if self.method=="sym":
+                idx_i, idx_j = np.triu_indices(R)  # shape: (R*(R+1)/2,)
+
+                # Build only the unique rows of WWT: shape (R*(R+1)//2, N)
+                self.WWT_upper = (self.W[:, idx_i] * self.W[:, idx_j]).T
+            else:
+                self.WWT = ((self.W[:,:,None]*self.W[:,None,:]).reshape(N,-1)).T#shape (R*R,N)
             # print("norm WWT", np.linalg.norm(self.WWT))
             if self.method=="svd":
                 U,S,Vh = np.linalg.svd(self.WWT,full_matrices=False)
-                E = S**2
-                relE = E.cumsum()/E.sum()
+                # E = S**2
+                # relE = E.cumsum()/E.sum()
                 # rank_svd =  self.rank
                 # rank_svd =  self.rank**2
-                rank_svd = (relE<self.svd_tol).sum()+1
-                print(relE.tolist())
-                print(self.rank,rank_svd)
+                rank_svd = self.rank*self.rank#(relE<self.svd_tol).sum()+1
+                # print(relE.tolist())
+                # print(self.rank,rank_svd)
                 # self.factorL = U[:,:rank_svd]*S[:rank_svd]
                 # self.factorR = Vh[:rank_svd,:]
                 self.factorL = U[:,:rank_svd]*np.sqrt(S[:rank_svd])
@@ -255,6 +388,7 @@ class Solver(BaseSolver):
                 self.W /= factor
 
             #update W
+            print("update W")
             self.sum_W = np.sum(self.H.T, axis = 0)[:, None]
             
             if self.balancing:
@@ -270,17 +404,22 @@ class Solver(BaseSolver):
             # print("norm H", np.linalg.norm(self.W))
             # print("norm V", np.linalg.norm(self.X))
             # print("mean W", np.mean(self.H.T))
-            self.WWT = (((self.H.T[:,:,None])*(self.H.T[:,None,:])).reshape(M,-1)).T
+            if self.method=="sym":
+                idx_i, idx_j = np.triu_indices(R) 
+
+                self.WWT_upper = (self.H.T[:, idx_i] * self.H.T[:, idx_j]).T  # (R*R, N)
+            else:
+                self.WWT = (((self.H.T[:,:,None])*(self.H.T[:,None,:])).reshape(M,-1)).T
             # print("norm WWT", np.linalg.norm(self.WWT))
             if self.method=="svd":
                 U,S,Vh = np.linalg.svd(self.WWT,full_matrices=False)
-                E = S**2
-                relE = E.cumsum()/E.sum()
+                # E = S**2
+                # relE = E.cumsum()/E.sum()
                 # rank_svd =  self.rank
                 # rank_svd =  self.rank**2
-                rank_svd = (relE<self.svd_tol).sum()+1
-                print(relE.tolist())
-                print(self.rank,rank_svd)
+                rank_svd = self.rank*self.rank#(relE<self.svd_tol).sum()+1
+                # print(relE.tolist())
+                # print(self.rank,rank_svd)
                 # self.factorL = U[:,:rank_svd]*S[:rank_svd]
                 # self.factorR = Vh[:rank_svd,:]
                 self.factorL = U[:,:rank_svd]*np.sqrt(S[:rank_svd])
