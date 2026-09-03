@@ -8,7 +8,7 @@ with safe_import_context() as import_ctx:
 
 class Solver(BaseSolver):
     '''
-    Alternating Proximal gradient
+    Alternating Proximal gradient from sklearn
     '''
     name = "sklearn"
     install_cmd = 'conda'

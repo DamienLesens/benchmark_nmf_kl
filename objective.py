@@ -1,4 +1,5 @@
 from benchopt import BaseObjective, safe_import_context
+import scipy.sparse as sp
 
 # Protect import to allow manipulating objective without importing library
 # Useful for autocompletion and install commands
@@ -42,14 +43,22 @@ class Objective(BaseObjective):
         # The arguments of this function are the outputs of the
         # `get_result` method of the solver.
         # They are customizable.
-        WH = np.dot(W, H)
-        frobenius_loss = 1/2 * np.linalg.norm(self.X - WH, ord="fro")**2
-        kl_loss = np.sum(kl_div(self.X, WH))
+        if sp.issparse(self.X):
+            i,j = self.X.nonzero()
+            WHdata = np.einsum('ik,ik->i', W[i], H.T[j])
+            frobenius_loss = 0.5 * (np.sum(self.X.data ** 2) - 2 * np.sum(self.X.data * WHdata) + np.sum((W.T @ W) * (H @ H.T)))
+            kl_loss = np.sum(kl_div(self.X.data, WHdata)) + np.sum(W.sum(axis=0) * H.sum(axis=1)) - np.sum(WHdata)
+            
+        else:
+            WH = np.dot(W, H)
+            frobenius_loss = 1/2 * np.linalg.norm(self.X - WH, ord="fro")**2
+            kl_loss = np.sum(kl_div(self.X, WH))
+            
 
         output_dict = {
-            'value': frobenius_loss,
+            'value': kl_loss,
             'frobenius': frobenius_loss,
-            'kullback-leibler': kl_loss,
+            'kullback-leibler': kl_loss
         }
 
         if self.true_factors:
@@ -78,10 +87,17 @@ class Objective(BaseObjective):
         # for the `set_objective` method of the solver.
         # They are customizable.
         # we compute a random seeded init here to share across methods!
+        seed = self.get_seed(
+            use_objective=True,
+            use_dataset=True,
+            use_solver=False,
+            use_repetition=True
+        )
+
         m, n = self.X.shape
         rank = self.rank
         if self.share_init:
-            rng = np.random.RandomState(random_state)
+            rng = np.random.RandomState(seed)
             factors_init = [rng.rand(m, rank), rng.rand(rank, n)]
             for factor in factors_init:
                 factor.flags.writeable = False  # Read Only

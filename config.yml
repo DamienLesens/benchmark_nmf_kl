@@ -1,0 +1,38 @@
+objective: # Choose loss type
+  - Nonnegative Matrix Factorization[share_init=True]
+dataset: # dataset to run benchmark on
+  # - simulated[estimated_rank=10,low_rank=True,m_dim=200,n_dim=200,noise_type=poisson,noisy=True,snr=100,sparsity_factors=0.3,true_rank=10] #[low_rank=[True],sparsity_factors=[1],noisy=[True],error_model=['gaussian']]
+  # - simulated[estimated_rank=20,low_rank=True,m_dim=500,n_dim=500,noise_type=poisson,noisy=True,rep=1,snr=100,sparsity_factors=0.3,true_rank=20] #[low_rank=[True],sparsity_factors=[1],noisy=[True],error_model=['gaussian']]
+
+  # - MAPS_MUS-bach_846_AkPnBcht #5s fpr first two, 10s for last two, difficulties to descent on rank=2
+  - MyHeart #5s
+
+  # - urban #15s
+  - MIT-CBCL-face #5s
+  # - ORLfaces #10s
+  # - Frey #does not converge 15s
+  # - Umist #does not converge +15
+
+  # - Verb[estimated_rank=10] 
+  # - CLUTO[collection=['cacmcisi','tr23','re0']] #5s
+  # - CLUTO[collection=['classic', 'cranmed','tr45', 'tr41','tr31','tr12','tr11','k1b','re1']] #10s 
+  # - CLUTO[collection=['la1','la2','wap','mm']] #20s
+  # - CLUTO[collection=['fbis','hitech','ohscal']] #30s
+  # - CLUTO[collection=['k1a', 'la12','sports','reviews','new3']] #roughly all 30s except new3 which is 60+
+solver: # list of example solvers to do benchmark
+  - mu
+  - mu_aao[sinkhorn_init=False]
+  # - mu_burg
+  # - fpa
+  # - admm[rho=[1,10,100]]
+  # - som
+  # - scalar_newton #[method='SN']
+  # - newton[iter_HALS=[5], descent=[False],n_inner_iter=[5], sinkhorn_init=[True]] #, beta=0.5, it_backtracking=10] #[method=["full"]]
+  # - hals[iter_HALS=[10]]
+  
+# note: use more repetitions to have quantiles on the plot (only time quantiles)
+n-repetitions: 1
+# max-runs: 5
+timeout: 5 #total time for all the repetitions
+
+

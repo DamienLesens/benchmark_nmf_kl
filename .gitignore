@@ -6,6 +6,7 @@ __cache__
 .coverage
 **/outputs
 joblib/
+*.so
 
 # IDE specific folders
 .vscode
@@ -15,3 +16,5 @@ benchopt.ini
 
 .DS_Store
 coverage.xml
+data/*
+plotting/*
