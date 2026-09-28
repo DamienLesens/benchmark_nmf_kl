@@ -22,19 +22,24 @@ The rank for the NMF must be provided in the dataset. Several values may be spec
 Install
 --------
 
-This benchmark can be run using the following commands:
+Create a conda environment from the ``environment.yml`` file.
+
+Then specify in a config file which algorithms an datasets you want to use. An example is provided in ``example_config.yml``.
+
+
+You can then run the benchmark the following commands:
 
 .. code-block::
 
-   $ pip install -U benchopt
-   $ git clone https://github.com/cohenjer/benchmark_nmf_kl
-   $ benchopt run benchmark_nmf
-
-Apart from the problem, options can be passed to ``benchopt run``, to restrict the benchmarks to some solvers or datasets, e.g.:
-
-.. code-block::
-
-	$ benchopt run benchmark_nmf -s apg -d simulated --max-runs 10 --n-repetitions 10
+   benchopt run --config example_config.yml --output output_file
 
 
-Use ``benchopt run -h`` for more details about these options, or visit https://benchopt.github.io/api.html.
+Use ``benchopt run -h`` for more details about options, or visit https://benchopt.github.io/.
+
+You can plot specific curves using ``benchopt plot``.
+
+Datasets
+--------
+
+Instructions on how to download datasets are available in each dataset file. You have to create a folder ``data/`` and put the raw data 
+files inside.
