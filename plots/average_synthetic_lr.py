@@ -35,7 +35,11 @@ class Plot(BasePlot):
         mask = (df["objective_name"] == objective)
 
         for k, v in dataset_param.items():
+            if f"p_dataset_{k}" not in df:
+                return plots
             mask &= df[f"p_dataset_{k}"] == v
+            # if f"p_dataset_{k}" in df:
+                # mask &= df[f"p_dataset_{k}"] == v
 
         df = df[mask]
 
