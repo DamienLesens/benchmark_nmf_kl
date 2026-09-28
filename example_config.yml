@@ -3,10 +3,17 @@ objective: # Choose loss type
 dataset: # dataset to run benchmark on
   - simulated
 solver: # list of example solvers to do benchmark
-  - sklearn[loss=frobenius]
-  # - nimfa
-  - tensorly[strategy=HALS] #MU takes forever
-  - apg
+  - mu
+  # - mu_aao
+  - mu_burg
+  # - fpa
+  # - admm[rho=[1,10,100]]
+  - som
+  # - scalar_newton
+  - newton[iter_HALS=[5], descent=[False],n_inner_iter=[5]] 
+  # - hals[iter_HALS=[10]]
 
 # note: use more repetitions to have quantiles on the plot
 n-repetitions: 1
+
+timeout: 5
