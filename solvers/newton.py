@@ -3,11 +3,9 @@ from benchopt.stopping_criterion import SufficientProgressCriterion,NoCriterion
 import scipy.sparse as sp
 # from benchmark_utils.sparse_op import VoverWH,VoverWH2
 from benchmark_utils.scaling import sinkhorn
-import torch
 
 with safe_import_context() as import_ctx:
     import numpy as np
-    from scipy.special import kl_div
 
 
 class Solver(BaseSolver):
@@ -39,11 +37,11 @@ class Solver(BaseSolver):
         self.rank = rank
         self.factors_init = factors_init  # None if not initialized beforehand
 
-    def compute_hessians(self,W,VoverWHs):
+    def compute_hessians(self,VoverWHs):
         """
         Computes the tensor of all hessians
         """
-        N,M = VoverWHs.shape
+        _,M = VoverWHs.shape
         
         T = self.WWT @ VoverWHs #shape (R*R,M)
         T = T.reshape(self.rank,self.rank,M)
@@ -69,7 +67,7 @@ class Solver(BaseSolver):
             WH = W@H
             B2 = V/(WH**2)
             G = (W.T@(2*V/(WH))-self.sum_W)
-            T = self.compute_hessians(W,B2)
+            T = self.compute_hessians(B2)
 
         for it in range(self.iter_HALS):
              
