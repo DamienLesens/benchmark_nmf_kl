@@ -1,0 +1,20 @@
+name: env_test
+channels:
+  - conda-forge
+  - defaults
+  - tensorly
+dependencies:
+  - cython
+  - nimfa
+  - scipy
+  - tensorly
+  - pandas
+  - scikit-learn
+  - scipy
+  - pip
+  - pip:
+      - benchopt
+      - PyPNM
+      - soundfile
+      - pybind11
+      
